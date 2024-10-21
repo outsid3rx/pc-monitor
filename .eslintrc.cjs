@@ -11,4 +11,9 @@ module.exports = configure({
     presets.prettier(),
     presets.node(),
   ],
+  extend: {
+    rules: {
+      '@typescript-eslint/ban-types': 'off',
+    }
+  }
 })

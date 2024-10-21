@@ -7,6 +7,7 @@
     "strict": true,
     "skipLibCheck": true,
     "baseUrl": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "lib": ["esnext", "dom"],
   }
 }
