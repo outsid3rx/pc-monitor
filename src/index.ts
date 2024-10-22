@@ -18,7 +18,7 @@ let maxPages = 0
 
 const main = async () => {
   const deviceList = await SerialPort.list()
-  const device = deviceList.find((device) => device.vendorId === VENDOR_ID)
+  const device = deviceList.find((device) => VENDOR_ID.includes(String(device.vendorId)))
 
   if (!device) {
     throw new Error('Нужно сначала подключить устройство')

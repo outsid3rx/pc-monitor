@@ -33,12 +33,14 @@
     "serialport": "^12.0.0",
     "systeminformation": "^5.23.5"
   },
+  "engines": {
+    "node": "18.5.0"
+  },
   "pkg": {
     "scripts": "./dist/out.js",
-    "outputPath": "./dist/bin/",
+    "outputPath": "./bin/",
     "targets": [
       "node18-win-x64",
-      "node18-macos-x64",
       "node18-linux-x64"
     ],
     "assets": [

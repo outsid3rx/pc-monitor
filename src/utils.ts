@@ -3,7 +3,7 @@ import { CHARS_WIDTH, TEMPLATE_TOKENS } from './constants'
 
 export const getData = () =>
   si.get({
-    cpu: 'brand,speed',
+    cpu: 'speed',
     cpuTemperature: 'max',
     graphics: 'controllers',
     currentLoad: 'currentLoad',
