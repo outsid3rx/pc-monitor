@@ -10,13 +10,20 @@
     "build:watch": "tsc --watch",
     "start:watch": "node --watch dist/index.js",
     "lint": "eslint --ext .ts,.js ./src/*",
-    "lint:fix": "eslint --fix --ext .ts,.js ./src/*"
+    "lint:fix": "eslint --fix --ext .ts,.js ./src/*",
+    "build:esbuild": "esbuild ./src/index.ts --bundle --platform=node --target=node20 --outfile=./dist/out.js"
   },
-  "keywords": ["monitoring", "pc", "serialport", "arduino"],
+  "keywords": [
+    "monitoring",
+    "pc",
+    "serialport",
+    "arduino"
+  ],
   "author": "Max Zernyaev",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^22.7.7",
+    "esbuild": "^0.24.0",
     "eslint": "^8.56.0",
     "eslint-kit": "^11.0.0",
     "prettier": "^3.0.0",
@@ -25,5 +32,17 @@
   "dependencies": {
     "serialport": "^12.0.0",
     "systeminformation": "^5.23.5"
+  },
+  "pkg": {
+    "scripts": "./dist/out.js",
+    "outputPath": "./dist/bin/",
+    "targets": [
+      "node18-win-x64",
+      "node18-macos-x64",
+      "node18-linux-x64"
+    ],
+    "assets": [
+      "node_modules/@serialport/bindings-cpp/prebuilds/**/*"
+    ]
   }
 }
