@@ -6,7 +6,7 @@ export const getData = () =>
     cpu: 'brand,speed',
     cpuTemperature: 'max',
     graphics: 'controllers',
-    currentLoad: 'avgLoad',
+    currentLoad: 'currentLoad',
     mem: 'total, active',
   })
 
@@ -24,7 +24,7 @@ export const transform = (
   const replaceValues = {
     [TEMPLATE_TOKENS.CPU_Ghz]: data.cpu.speed.toFixed(1),
     [TEMPLATE_TOKENS.CPU_Temp]: Math.round(data.cpuTemperature.max),
-    [TEMPLATE_TOKENS.CPU_Load]: Math.round(data.currentLoad.avgLoad),
+    [TEMPLATE_TOKENS.CPU_Load]: Math.round(data.currentLoad.currentLoad),
     [TEMPLATE_TOKENS.GPU_Ghz]: ((gpu?.clockCore || 0) / 1000)?.toFixed(1),
     [TEMPLATE_TOKENS.GPU_Temp]:
       gpu?.temperatureGpu || gpu?.temperatureMemory
