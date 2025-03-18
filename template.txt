@@ -1,4 +1,4 @@
-CPU %C-Ghz% GHz %C-Temp% C
-GPU %G-Ghz% GHz %G-Temp% C
+CPU %C-MHz% MHz %C-Temp% C
+GPU %G-MHz% MHz %G-Temp% C
 CPU %C-Load%% GPU %G-Load%%
 RAM USED %R-Used%%

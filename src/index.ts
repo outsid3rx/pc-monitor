@@ -1,6 +1,6 @@
-import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { SerialPort } from 'serialport'
+import { parse } from 'valibot'
 import {
   CONFIG_FILE,
   DELIMITER,
@@ -11,23 +11,31 @@ import {
   TIMEOUT,
   VENDOR_ID,
 } from './constants'
-import { getData, paginate, transform } from './utils'
+import { logger } from './logger'
+import { ConfigSchema } from './scheme'
+import { getOhmData, paginate, transformOhmData } from './utils'
 
 let page = INITIAL_PAGE
 let maxPages = 0
 
 const main = async () => {
   const deviceList = await SerialPort.list()
-  const device = deviceList.find((device) => VENDOR_ID.includes(String(device.vendorId)))
+  const device = deviceList.find((device) =>
+    VENDOR_ID.includes(String(device.vendorId)),
+  )
 
   if (!device) {
+    logger.error('Устройство не найдено')
     throw new Error('Нужно сначала подключить устройство')
   }
 
+  logger.debug('Устройство найдено', device)
+
   const template = await readFile(TEMPLATES_FILE, 'utf-8')
-  const config = existsSync(CONFIG_FILE)
-    ? JSON.parse(await readFile(CONFIG_FILE, 'utf-8'))
-    : {}
+  const config = parse(
+    ConfigSchema,
+    JSON.parse(await readFile(CONFIG_FILE, 'utf-8')),
+  )
 
   const port = new SerialPort({
     path: device.path,
@@ -35,8 +43,8 @@ const main = async () => {
   })
 
   setInterval(async () => {
-    const data = await getData()
-    const transformed = transform(
+    const data = await getOhmData(config)
+    const transformed = transformOhmData(
       data,
       template.split(TEMPLATE_DELIMITER),
       config.gpuModel,

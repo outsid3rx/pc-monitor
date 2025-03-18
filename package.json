@@ -2,8 +2,8 @@
   "name": "resource-display",
   "version": "1.0.0",
   "description": "PC resources monitoring with arduino device",
-  "main": "dist/index.js",
-  "bin": "dist/index.js",
+  "main": "dist/out.js",
+  "bin": "dist/out.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
@@ -30,8 +30,10 @@
     "typescript": "^5.6.2"
   },
   "dependencies": {
-    "serialport": "^12.0.0",
-    "systeminformation": "^5.23.5"
+    "ky": "^1.7.5",
+    "serialport": "12.0.0",
+    "valibot": "^1.0.0-rc.4",
+    "winston": "^3.17.0"
   },
   "engines": {
     "node": "18.5.0"
@@ -40,8 +42,7 @@
     "scripts": "./dist/out.js",
     "outputPath": "./bin/",
     "targets": [
-      "node18-win-x64",
-      "node18-linux-x64"
+      "node18-win-x64"
     ],
     "assets": [
       "node_modules/@serialport/bindings-cpp/prebuilds/**/*"
