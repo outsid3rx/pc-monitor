@@ -11,7 +11,8 @@
     "start:watch": "node --watch dist/index.js",
     "lint": "eslint --ext .ts,.js ./src/*",
     "lint:fix": "eslint --fix --ext .ts,.js ./src/*",
-    "build:esbuild": "esbuild ./src/index.ts --bundle --platform=node --target=node20 --outfile=./dist/out.js"
+    "build:esbuild": "esbuild ./src/index.ts --bundle --platform=node --target=node20 --outfile=./dist/out.js",
+    "pack": "pnpm build:esbuild && pkg ."
   },
   "keywords": [
     "monitoring",
@@ -26,10 +27,20 @@
     "eslint": "^8.56.0",
     "eslint-kit": "^11.0.0",
     "prettier": "^3.0.0",
-    "typescript": "^5.6.2"
+    "typescript": "5.6.2"
   },
   "dependencies": {
     "serialport": "^12.0.0"
   },
-  "packageManager": "pnpm@10.33.2"
+  "packageManager": "pnpm@10.33.2",
+  "pkg": {
+    "scripts": "./dist/out.js",
+    "outputPath": "./bin/",
+    "targets": [
+      "node24-win-x64"
+    ],
+    "assets": [
+      "node_modules/.pnpm/@serialport*/**/*"
+    ]
+  }
 }
