@@ -1,3 +1,5 @@
+import { CHARS_WIDTH, TEMPLATE_TOKENS } from './constants'
+
 interface HwinfoSensor {
   Text: string
   Value: string
@@ -7,80 +9,83 @@ interface HwinfoSensor {
 
 type HwinfoData = HwinfoSensor
 
-const parseValue = (value: string): number | undefined => {
-  if (!value) return undefined
+const SENSOR_PATHS = {
+  cpu: {
+    clock: ['Clocks', 'Cores (Average)'],
+    temperature: ['Temperatures', 'Core (Tctl/Tdie)'],
+    load: ['Load', 'CPU Total'],
+  },
+  gpu: {
+    clock: ['Clocks', 'GPU Core'],
+    temperature: ['Temperatures', 'GPU Core'],
+    load: ['Load', 'GPU Core'],
+  },
+  ram: {
+    load: ['Load', 'Memory'],
+  },
+} as const
+
+const parseValue = (value: string): number => {
+  if (!value) return 0
   const num = Number.parseFloat(
     value.replace(',', '.').replace(/[^0-9.-]/g, ''),
   )
-  return Number.isNaN(num) ? undefined : num
+  return Number.isNaN(num) ? 0 : num
 }
+
+const find = (
+  sensors: HwinfoSensor[] | undefined,
+  predicate: (s: HwinfoSensor) => boolean,
+): HwinfoSensor | undefined => {
+  if (!sensors) return
+  for (const sensor of sensors) {
+    if (predicate(sensor)) return sensor
+    const found = find(sensor.Children, predicate)
+    if (found) return found
+  }
+}
+
+const findByHardwareId = (sensors: HwinfoSensor[], prefix: string) =>
+  find(sensors, (s) => s.HardwareId?.startsWith(prefix) ?? false)
+
+const findByName = (sensors: HwinfoSensor[], name: string) =>
+  find(sensors, (s) => s.Text === name && s.Children.length > 0)
 
 const findSensor = (
-  sensors: HwinfoSensor[],
-  path: string[],
+  sensors: HwinfoSensor[] | undefined,
+  path: readonly string[],
 ): HwinfoSensor | undefined => {
-  if (path.length === 0) return undefined
+  if (!sensors || path.length === 0) return undefined
   const [first, ...rest] = path
-  const found = sensors.find((s) => s.Text === first)
-  if (!found) return undefined
-  if (rest.length === 0) return found
-  return findSensor(found.Children, rest)
-}
-
-const findByHardwareId = (
-  sensors: HwinfoSensor[],
-  prefix: string,
-): HwinfoSensor | undefined => {
-  for (const sensor of sensors) {
-    if (sensor.HardwareId?.startsWith(prefix)) {
-      return sensor
-    }
-    const found = findByHardwareId(sensor.Children, prefix)
-    if (found) return found
-  }
-}
-
-const findHardware = (
-  sensors: HwinfoSensor[],
-  name: string,
-): HwinfoSensor | undefined => {
-  for (const sensor of sensors) {
-    if (sensor.Text === name && sensor.Children.length > 0) {
-      return sensor
-    }
-    const found = findHardware(sensor.Children, name)
-    if (found) return found
-  }
+  const sensor = sensors.find((s) => s.Text === first)
+  if (!sensor) return undefined
+  if (rest.length === 0) return sensor
+  return findSensor(sensor.Children, rest)
 }
 
 const findCpu = (sensors: HwinfoSensor[]): HwinfoSensor | undefined => {
-  const cpuById = findByHardwareId(sensors, '/cpu')
-  if (cpuById) return cpuById
+  const byId = findByHardwareId(sensors, '/cpu')
+  if (byId) return byId
 
-  for (const sensor of sensors) {
-    if (sensor.Children) {
-      const hasClocks = sensor.Children.some((c) => c.Text === 'Clocks')
-      const hasTemps = sensor.Children.some((c) => c.Text === 'Temperatures')
-      const hasLoad = sensor.Children.some((c) => c.Text === 'Load')
-      if (hasClocks && hasTemps && hasLoad) {
-        return sensor
-      }
-    }
-  }
+  return find(sensors, (s) => {
+    const children = s.Children || []
+    const has = (name: string) => children.some((c) => c.Text === name)
+    return has('Clocks') && has('Temperatures') && has('Load')
+  })
 }
 
-const findFirstGpu = (sensors: HwinfoSensor[]): HwinfoSensor | undefined => {
-  for (const sensor of sensors) {
-    if (
-      sensor.HardwareId &&
-      (sensor.HardwareId.startsWith('/gpu-nvidia') ||
-        sensor.HardwareId.startsWith('/gpu-amd'))
-    ) {
-      return sensor
-    }
-    const found = findFirstGpu(sensor.Children)
-    if (found) return found
+const findGpu = (
+  sensors: HwinfoSensor[],
+  preferredName?: string,
+): HwinfoSensor | undefined => {
+  if (preferredName) {
+    const byName = findByName(sensors, preferredName)
+    if (byName) return byName
   }
+  return find(sensors, (s) => {
+    const id = s.HardwareId
+    return id === '/gpu-nvidia/0' || id === '/gpu-amd/0'
+  })
 }
 
 export const getData = async (url: string): Promise<HwinfoData> => {
@@ -91,21 +96,68 @@ export const getData = async (url: string): Promise<HwinfoData> => {
   return response.json()
 }
 
-export interface TransformInput {
-  cpu: {
-    speed: number
-    temperature: number
-    load: number
+interface SensorValues {
+  cpu: { speed: number; temperature: number; load: number }
+  gpu: { clock: number; temperature: number; load: number }
+  ram: { load: number }
+}
+
+const extractValues = (data: HwinfoData, gpuModel?: string): SensorValues => {
+  const computer = data.Children?.[0]
+  const devices = computer?.Children || []
+
+  const cpu = findCpu(devices)
+  const gpu = findGpu(devices, gpuModel)
+  const ram = findByName(devices, 'Total Memory')
+
+  return {
+    cpu: {
+      speed: parseValue(
+        findSensor(cpu?.Children, SENSOR_PATHS.cpu.clock)?.Value || '',
+      ),
+      temperature: parseValue(
+        findSensor(cpu?.Children, SENSOR_PATHS.cpu.temperature)?.Value || '',
+      ),
+      load: parseValue(
+        findSensor(cpu?.Children, SENSOR_PATHS.cpu.load)?.Value || '',
+      ),
+    },
+    gpu: {
+      clock: parseValue(
+        findSensor(gpu?.Children, SENSOR_PATHS.gpu.clock)?.Value || '',
+      ),
+      temperature: parseValue(
+        findSensor(gpu?.Children, SENSOR_PATHS.gpu.temperature)?.Value || '',
+      ),
+      load: parseValue(
+        findSensor(gpu?.Children, SENSOR_PATHS.gpu.load)?.Value || '',
+      ),
+    },
+    ram: {
+      load: parseValue(
+        findSensor(ram?.Children, SENSOR_PATHS.ram.load)?.Value || '',
+      ),
+    },
   }
-  gpu: {
-    clock: number
-    temperature: number
-    load: number
+}
+
+const applyToken = (template: string, values: SensorValues): string => {
+  const replacements: Record<string, string> = {
+    [TEMPLATE_TOKENS.CPU_Ghz]: (values.cpu.speed / 1000).toFixed(1),
+    [TEMPLATE_TOKENS.CPU_Temp]: Math.round(values.cpu.temperature).toString(),
+    [TEMPLATE_TOKENS.CPU_Load]: Math.round(values.cpu.load).toString(),
+    [TEMPLATE_TOKENS.GPU_Ghz]: (values.gpu.clock / 1000).toFixed(1),
+    [TEMPLATE_TOKENS.GPU_Temp]: Math.round(values.gpu.temperature).toString(),
+    [TEMPLATE_TOKENS.GPU_Load]: Math.round(values.gpu.load).toString(),
+    [TEMPLATE_TOKENS.RAM_Used]: Math.round(values.ram.load).toString(),
   }
-  mem: {
-    active: number
-    total: number
+
+  let result = template
+  for (const [token, value] of Object.entries(replacements)) {
+    result = result.replaceAll(token, value)
   }
+
+  return result.length < CHARS_WIDTH ? result.padEnd(CHARS_WIDTH, ' ') : result
 }
 
 export const transform = (
@@ -113,89 +165,8 @@ export const transform = (
   templates: string[],
   gpuModel?: string,
 ): string[] => {
-  const [computer] = data.Children
-  if (!computer?.Children) {
-    return templates.map(() => '')
-  }
-
-  const cpu = findCpu(computer.Children)
-  const cpuClock =
-    cpu && findSensor(cpu.Children, ['Clocks', 'Cores (Average)'])
-  const cpuTemp =
-    cpu && findSensor(cpu.Children, ['Temperatures', 'Core (Tctl/Tdie)'])
-  const cpuLoad = cpu && findSensor(cpu.Children, ['Load', 'CPU Total'])
-
-  let gpu: HwinfoSensor | undefined
-  if (gpuModel) {
-    gpu = findHardware(computer.Children, gpuModel)
-  }
-  if (!gpu) {
-    gpu = findFirstGpu(computer.Children)
-  }
-
-  const gpuClock = gpu && findSensor(gpu.Children, ['Clocks', 'GPU Core'])
-  const gpuTemp = gpu && findSensor(gpu.Children, ['Temperatures', 'GPU Core'])
-  const gpuLoad = gpu && findSensor(gpu.Children, ['Load', 'GPU Core'])
-
-  const totalMemory = findHardware(computer.Children, 'Total Memory')
-  const ramLoad =
-    totalMemory && findSensor(totalMemory.Children, ['Load', 'Memory'])
-
-  const transformData: TransformInput = {
-    cpu: {
-      speed: parseValue(cpuClock?.Value || '') || 0,
-      temperature: parseValue(cpuTemp?.Value || '') || 0,
-      load: parseValue(cpuLoad?.Value || '') || 0,
-    },
-    gpu: {
-      clock: parseValue(gpuClock?.Value || '') || 0,
-      temperature: parseValue(gpuTemp?.Value || '') || 0,
-      load: parseValue(gpuLoad?.Value || '') || 0,
-    },
-    mem: {
-      active: parseValue(ramLoad?.Value || '') || 0,
-      total: 100,
-    },
-  }
-
-  return templates.map((template) => {
-    let result = template
-
-    result = result.replaceAll(
-      '%C-Ghz%',
-      (transformData.cpu.speed / 1000).toFixed(1),
-    )
-    result = result.replaceAll(
-      '%C-Temp%',
-      Math.round(transformData.cpu.temperature).toString(),
-    )
-    result = result.replaceAll(
-      '%C-Load%',
-      Math.round(transformData.cpu.load).toString(),
-    )
-    result = result.replaceAll(
-      '%G-Ghz%',
-      (transformData.gpu.clock / 1000).toFixed(1),
-    )
-    result = result.replaceAll(
-      '%G-Temp%',
-      Math.round(transformData.gpu.temperature).toString(),
-    )
-    result = result.replaceAll(
-      '%G-Load%',
-      Math.round(transformData.gpu.load).toString(),
-    )
-    result = result.replaceAll(
-      '%R-Used%',
-      Math.round(transformData.mem.active).toString(),
-    )
-
-    if (result.length < 16) {
-      result = result.padEnd(16, ' ')
-    }
-
-    return result
-  })
+  const values = extractValues(data, gpuModel)
+  return templates.map((template) => applyToken(template, values))
 }
 
 export const paginate = (array: string[], page: number, pageSize: number) => {
