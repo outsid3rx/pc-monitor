@@ -16,7 +16,6 @@
   "keywords": [
     "monitoring",
     "pc",
-    "serialport",
     "arduino"
   ],
   "author": "Max Zernyaev",
@@ -30,21 +29,7 @@
     "typescript": "^5.6.2"
   },
   "dependencies": {
-    "serialport": "^12.0.0",
-    "systeminformation": "^5.23.5"
+    "serialport": "^12.0.0"
   },
-  "engines": {
-    "node": "18.5.0"
-  },
-  "pkg": {
-    "scripts": "./dist/out.js",
-    "outputPath": "./bin/",
-    "targets": [
-      "node18-win-x64",
-      "node18-linux-x64"
-    ],
-    "assets": [
-      "node_modules/@serialport/bindings-cpp/prebuilds/**/*"
-    ]
-  }
+  "packageManager": "pnpm@10.33.2"
 }

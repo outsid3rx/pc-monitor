@@ -18,7 +18,9 @@ let maxPages = 0
 
 const main = async () => {
   const deviceList = await SerialPort.list()
-  const device = deviceList.find((device) => VENDOR_ID.includes(String(device.vendorId)))
+  const device = deviceList.find((device) =>
+    VENDOR_ID.includes(String(device.vendorId)),
+  )
 
   if (!device) {
     throw new Error('Нужно сначала подключить устройство')
@@ -35,7 +37,7 @@ const main = async () => {
   })
 
   setInterval(async () => {
-    const data = await getData()
+    const data = await getData(config.hwinfoUrl)
     const transformed = transform(
       data,
       template.split(TEMPLATE_DELIMITER),
