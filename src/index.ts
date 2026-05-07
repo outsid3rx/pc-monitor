@@ -15,6 +15,7 @@ import { getData, paginate, transform } from './utils'
 
 let page = INITIAL_PAGE
 let maxPages = 0
+let tick = 0
 
 const main = async () => {
   const deviceList = await SerialPort.list()
@@ -31,27 +32,29 @@ const main = async () => {
     ? JSON.parse(await readFile(CONFIG_FILE, 'utf-8'))
     : {}
 
+  const templateLines = template.split(TEMPLATE_DELIMITER)
+  maxPages = Math.ceil(templateLines.length / LINES)
+
   const port = new SerialPort({
     path: device.path,
     baudRate: 9600,
   })
 
-  setInterval(async () => {
-    const data = await getData(config.hwinfoUrl)
-    const transformed = transform(
-      data,
-      template.split(TEMPLATE_DELIMITER),
-      config.gpuModel,
-    )
+  port.on('open', () => {
+    setInterval(async () => {
+      const data = await getData(config.hwinfoUrl)
+      const transformed = transform(data, templateLines, config.gpuModel)
 
-    maxPages = Math.ceil(transformed.length / LINES)
+      const resultLines = paginate(transformed, page, LINES)
+      const result = resultLines.join(DELIMITER)
 
-    port.write(paginate(transformed, page, LINES).join(DELIMITER))
-  }, TIMEOUT)
+      port.write(result)
 
-  setInterval(() => {
-    page = page + 1 > maxPages ? INITIAL_PAGE : page + 1
-  }, TIMEOUT * 2)
+      if (++tick % 2 === 0) {
+        page = page >= maxPages ? INITIAL_PAGE : page + 1
+      }
+    }, TIMEOUT)
+  })
 }
 
 void main()
