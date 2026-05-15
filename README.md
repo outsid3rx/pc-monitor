@@ -19,6 +19,15 @@
 3. Создать `config.json` с настройками
 4. Запустить `./resource-display.exe`
 
+## Настройка автоматического запуска
+
+1. Скачать `install-autostart.bat` из релизов и положить рядом с `resource-display.exe`
+2. Запустить `install-autostart.bat` — он создаст `resource-display-autostart.vbs`
+3. Создать ярлык для `resource-display-autostart.vbs` (правый клик → Создать → Ярлык)
+4. Перенести ярлык в папку автозапуска:
+   - Нажать `Win+R`, ввести `shell:startup`
+   - Вставить ярлык
+
 ## Установка зависимостей и запуск из исходников
 
 ```bash
